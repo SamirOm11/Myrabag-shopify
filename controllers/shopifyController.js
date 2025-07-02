@@ -24,106 +24,78 @@ exports.getShopifyOrders = async (req, res) => {
     const url = `https://${shopDomain}/admin/api/2023-04/graphql.json`;
     console.log("🚀 ~ exports.getShopifyOrders= ~ url:", url)
 
-    // Fetch all orders with cursor-based pagination
-    let endCursor = null;
-    let allOrders = [];
-    let hasNextPage = true;
-    let batch = 1;
-    // Robust approach: fetch until hasNextPage is false, but also break if the cursor repeats (to avoid infinite loops)
-    const seenCursors = new Set();
-    console.log("🚀 ~ exports.getShopifyOrders= ~ seenCursors:", seenCursors)
-    console.log('Starting to fetch orders...');
-    for (let i = 0; hasNextPage; i++) {
-      const query = `{
-        orders(first: 250${endCursor ? `, after: \"${endCursor}\"` : ''}) {
-          pageInfo {
-            hasNextPage
-          }
-          edges {
-        cursor
-        node {
-          id
-          name
-          email
-          createdAt
-          displayFulfillmentStatus
-          totalPriceSet {
-            shopMoney {
-              amount
-              currencyCode
+    // Fetch only the first 250 orders (no pagination/looping)
+    const query = `{
+      orders(first: 250) {
+        pageInfo {
+          hasNextPage
+        }
+        edges {
+          cursor
+          node {
+            id
+            name
+            email
+            createdAt
+            displayFulfillmentStatus
+            totalPriceSet {
+              shopMoney {
+                amount
+                currencyCode
+              }
             }
-          }
-          lineItems(first: 10) {
-            edges {
-              node {
-                id
-                title
-                quantity
-                variant {
+            lineItems(first: 10) {
+              edges {
+                node {
                   id
                   title
-                  sku
-                  price
+                  quantity
+                  variant {
+                    id
+                    title
+                    sku
+                    price
+                  }
                 }
               }
             }
-          }
-             fulfillments(first: 10) {
+            fulfillments(first: 10) {
               status
             }
-          shippingAddress {
-            name
-            address1
-            city
-            country
-            zip
+            shippingAddress {
+              name
+              address1
+              city
+              country
+              zip
+            }
+            customer {
+              id
+              displayName
+              email
+            }
           }
-          customer {
-            id
-            displayName
-            email
-          }
         }
       }
-        }
-      }`;
-      console.log(`Fetching batch #${batch}... endCursor: ${endCursor}`);
-      const response = await axios.post(
-        url,
-        { query },
-        {
-          headers: {
-            'X-Shopify-Access-Token': accessToken,
-            'Content-Type': 'application/json',
-          },
-        }
-      );
-      const data = response.data.data.orders;
-      const batchOrders = data.edges.map(edge => edge.node);
-      console.log(`Batch #${batch} fetched: ${batchOrders.length} orders`);
-      if (batchOrders.length === 0) {
-        console.log('No new orders fetched in this batch. Stopping to prevent infinite loop.');
-        break;
+    }`;
+    const response = await axios.post(
+      url,
+      { query },
+      {
+        headers: {
+          'X-Shopify-Access-Token': accessToken,
+          'Content-Type': 'application/json',
+        },
       }
-      allOrders.push(...batchOrders);
-      hasNextPage = data.pageInfo.hasNextPage;
-      const prevCursor = endCursor;
-      endCursor = data.edges.length > 0 ? data.edges[data.edges.length - 1].cursor : null;
-      // Detect cursor repetition
-      if (endCursor && seenCursors.has(endCursor)) {
-        console.log('Cursor repeated. Stopping to prevent infinite loop.');
-        break;
-      }
-      if (endCursor) seenCursors.add(endCursor);
-      batch++;
-      if (!hasNextPage) break;
-    }
+    );
+    const data = response.data.data.orders;
+    const allOrders = data.edges.map(edge => edge.node);
     // After all orders fetched, set status to completed
     await OrderStatus.findOneAndUpdate(
       { orderId: 'shopify-fetch-all' },
-      { status: 'completed', message: 'All orders fetched successfully' }
+      { status: 'completed', message: 'Orders fetched successfully' }
     );
-    console.log('All orders fetched!');
+    console.log('Orders fetched!');
     res.json({ status: 'fetched', orders: allOrders });
   } catch (error) {
     // On error, set status to failed
