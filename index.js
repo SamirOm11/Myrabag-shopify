@@ -12,6 +12,7 @@ const PORT = process.env.PORT || 3000;
 
 // MongoDB connection
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/myrabag';
+console.log("🚀 ~ MONGODB_URI:", MONGODB_URI)
 mongoose.connect(MONGODB_URI, {
   useNewUrlParser: true,
   useUnifiedTopology: true,
@@ -22,7 +23,7 @@ mongoose.connect(MONGODB_URI, {
     process.exit(1);
   });
 
-app.use(cors());
+app.use(cors({ origin: '*' }));
 app.use(morgan('dev'));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
