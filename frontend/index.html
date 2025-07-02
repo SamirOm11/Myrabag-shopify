@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Shopify Orders Fetcher</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 2rem; }
+    button { padding: 0.5rem 1rem; font-size: 1rem; }
+    pre { background: #f4f4f4; padding: 1rem; border-radius: 5px; }
+  </style>
+</head>
+<body>
+  <h1>Fetch Shopify Orders</h1>
+  <button id="fetchOrdersBtn">Get Orders</button>
+  <h2>Result:</h2>
+  <pre id="result"></pre>
+  <script>
+    document.getElementById('fetchOrdersBtn').onclick = async function() {
+      const result = document.getElementById('result');
+      result.textContent = 'Loading...';
+      try {
+        const res = await fetch('http://localhost:3000/shopify/orders');
+        const data = await res.json();
+        result.textContent = JSON.stringify(data, null, 2);
+      } catch (err) {
+        result.textContent = 'Error: ' + err;
+      }
+    };
+  </script>
+</body>
+</html>
